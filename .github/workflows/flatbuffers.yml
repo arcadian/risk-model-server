@@ -19,9 +19,9 @@ jobs:
 
       - name: Download flatc
         run: |
-          wget https://github.com/google/flatbuffers/releases/download/v24.3.25/Linux.flatc.zip
-          unzip Linux.flatc.zip -d flatc_bin
-          chmod +x flatc_bin/flatc
+          wget https://github.com/google/flatbuffers/releases/download/v25.2.10/Linux.flatc.binary.clang++‑18.zip
+          unzip Linux.flatc.binary.clang++‑18.zip -d flatc_bin
+          chmod +x flatc_bin/flatc	
 
       - name: Generate Java classes
         run: |
