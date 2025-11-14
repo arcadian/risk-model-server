@@ -1,4 +1,4 @@
-namespace server.fb.risk;
+namespace fb.risk;
 
 table SymbolEntry {
   name: string;
