@@ -1,0 +1,36 @@
+name: FlatBuffers Generate Java
+
+on:
+  push:
+    paths:
+      - "schema/**.fbs"
+  workflow_dispatch:
+
+jobs:
+  generate-java:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y unzip wget openjdk-17-jdk
+
+      - name: Download flatc
+        run: |
+          wget https://github.com/google/flatbuffers/releases/download/v24.3.25/Linux.flatc.zip
+          unzip Linux.flatc.zip -d flatc_bin
+          chmod +x flatc_bin/flatc
+
+      - name: Generate Java classes
+        run: |
+          mkdir -p generated/java
+          flatc_bin/flatc --java -o generated/java schema/risk_day.fbs
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: flatbuffers-java
+          path: generated/java
+

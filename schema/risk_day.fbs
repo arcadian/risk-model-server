@@ -1,0 +1,13 @@
+namespace Risk;
+
+table SymbolEntry {
+  name: string;
+  factors: [double];
+}
+
+table DayData {
+  symbols: [SymbolEntry];
+}
+
+root_type DayData;
+
