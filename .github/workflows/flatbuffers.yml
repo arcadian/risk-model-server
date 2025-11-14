@@ -19,7 +19,7 @@ jobs:
 
       - name: Download flatc
         run: |
-          wget https://github.com/google/flatbuffers/releases/download/v25.2.10/Linux.flatc.binary.clang++‑18.zip
+          wget https://github.com/google/flatbuffers/releases/download/v25.9.23/Linux.flatc.binary.clang++-18.zip
           unzip Linux.flatc.binary.clang++‑18.zip -d flatc_bin
           chmod +x flatc_bin/flatc	
 
