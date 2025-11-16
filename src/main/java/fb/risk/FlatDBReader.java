@@ -1,8 +1,5 @@
 package fb.risk;
 
-import com.google.flatbuffers.FlatBufferBuilder;
-import quotes.SymbolData;
-
 import java.io.IOException;
 import java.nio.*;
 import java.nio.channels.FileChannel;
@@ -12,48 +9,48 @@ import java.util.*;
 
 public class FlatDBReader {
 
-    public record Entry(int offset, int length) {}
+    public static record Entry(String symbol, int offset, int length) {}
 
+    private final FileChannel channel;
     private final MappedByteBuffer mmap;
     private final Map<String, Entry> index = new HashMap<>();
 
     public FlatDBReader(Path file) throws IOException {
-        FileChannel ch = FileChannel.open(file, StandardOpenOption.READ);
-        this.mmap = ch.map(FileChannel.MapMode.READ_ONLY, 0, ch.size()).order(ByteOrder.LITTLE_ENDIAN);
+        channel = FileChannel.open(file, StandardOpenOption.READ);
+        mmap = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
+        mmap.order(ByteOrder.LITTLE_ENDIAN);
+        loadIndex();
+    }
 
+    private void loadIndex() {
         byte[] magic = new byte[8];
-        mmap.position(0);
         mmap.get(magic);
-        if (!"FLATDB02".equals(new String(magic, StandardCharsets.US_ASCII)))
-            throw new IllegalStateException("Invalid DB format");
-
         int count = mmap.getInt();
         int indexSize = mmap.getInt();
 
-        int p = 16;
+        int pos = 16;
         for (int i = 0; i < count; i++) {
-            int len = mmap.getInt(p);
-            p += 4;
-            byte[] sym = new byte[len];
-            mmap.position(p);
-            mmap.get(sym, 0, len);
-            p += len;
-            int dataLength = mmap.getInt(p);
-            p += 4;
-            int dataOffset = mmap.getInt(p);
-            p += 4;
+            int len = mmap.getInt(pos);
+            pos += 4;
+            byte[] symBytes = new byte[len];
+            mmap.position(pos);
+            mmap.get(symBytes, 0, len);
+            pos += len;
 
-            index.put(new String(sym, StandardCharsets.UTF_8), new Entry(dataOffset, dataLength));
+            String sym = new String(symBytes, StandardCharsets.UTF_8);
+            int bufLen = mmap.getInt(pos); pos += 4;
+            int off = mmap.getInt(pos); pos += 4;
+            index.put(sym, new Entry(sym, off, bufLen));
         }
     }
 
-    public SymbolData get(String symbol) {
+    public Optional<ByteBuffer> sliceFor(String symbol) {
         Entry e = index.get(symbol);
-        if (e == null) return null;
-
-        ByteBuffer dup = mmap.duplicate().order(ByteOrder.LITTLE_ENDIAN);
-        dup.position(e.offset).limit(e.offset + e.length);
-        return SymbolData.getRootAsSymbolData(dup);
+        if (e == null) return Optional.empty();
+        ByteBuffer dup = mmap.duplicate();
+        dup.position(e.offset);
+        dup.limit(e.offset + e.length);
+        return Optional.of(dup.slice());
     }
 }
 
