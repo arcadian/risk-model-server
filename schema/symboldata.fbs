@@ -1,0 +1,10 @@
+namespace fb.risk;
+
+table SymbolData {
+  symbol: string;
+  prices: [float];
+}
+
+root_type SymbolData;
+file_identifier "SYMB";
+
