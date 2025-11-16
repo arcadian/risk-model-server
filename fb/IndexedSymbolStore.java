@@ -40,10 +40,9 @@ public class IndexedSymbolStore {
         IndexEntry e = index.get(symbol);
         if (e == null) return null;
 
-        // memory-mapped slice: skip 4-byte length prefix
         ByteBuffer slice = mmap.duplicate();
-        slice.position((int) (e.offset + 4));
-        slice.limit((int) (e.offset + 4 + e.length));
+        slice.position((int) (e.offset + 4));           // skip length prefix
+        slice.limit((int) (e.offset + 4 + e.length));   // set limit to end of FlatBuffer
         slice = slice.slice().order(ByteOrder.LITTLE_ENDIAN);
         slice.rewind();
         return slice;

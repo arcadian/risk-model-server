@@ -8,7 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class GenerateSymbolsWithIndex {
+public class GenerateIndexedSymbols {
 
     static final int NUM_SYMBOLS = 100;
     static final int NUM_FACTORS = 100;
@@ -21,10 +21,7 @@ public class GenerateSymbolsWithIndex {
         try (FileOutputStream fos = new FileOutputStream(FILE_NAME);
              FileChannel channel = fos.getChannel()) {
 
-            // Reserve space for index; we’ll write it after data section
-            channel.position(0);
-
-            // Temporary list to hold FlatBuffers for writing
+            // Temporary array to hold FlatBuffers
             ByteBuffer[] buffers = new ByteBuffer[NUM_SYMBOLS];
 
             // 1️⃣ Build FlatBuffers in memory
@@ -44,16 +41,19 @@ public class GenerateSymbolsWithIndex {
                 int root = SymbolData.endSymbolData(builder);
                 builder.finish(root);
 
-                buffers[i] = builder.dataBuffer();
+                ByteBuffer bb = builder.dataBuffer();
+                bb.position(0);
+                bb.limit(builder.offset());
+                buffers[i] = bb;
             }
 
-            // 2️⃣ Write data section with length-prefixed FlatBuffers
-            long dataSectionStart = 0;
+            // 2️⃣ Write data section with length-prefixed FlatBuffers and record index
             for (int i = 0; i < NUM_SYMBOLS; i++) {
                 ByteBuffer bb = buffers[i];
-                long symbolOffset = channel.position(); // offset for index BEFORE writing length
 
-                // write length prefix
+                long symbolOffset = channel.position(); // offset BEFORE length prefix
+
+                // write 4-byte length
                 ByteBuffer lenBuf = ByteBuffer.allocate(4).putInt(bb.remaining());
                 lenBuf.flip();
                 channel.write(lenBuf);
@@ -61,11 +61,11 @@ public class GenerateSymbolsWithIndex {
                 // write FlatBuffer bytes
                 channel.write(bb);
 
-                // store index entry
+                // store index
                 indexMap.put("sym" + i, new IndexEntry(symbolOffset, bb.remaining()));
             }
 
-            // 3️⃣ Write index at the start of the file
+            // 3️⃣ Write index at start of file
             channel.position(0);
 
             // number of symbols
@@ -73,7 +73,7 @@ public class GenerateSymbolsWithIndex {
             header.flip();
             channel.write(header);
 
-            // write index entries
+            // index entries
             for (Map.Entry<String, IndexEntry> e : indexMap.entrySet()) {
                 byte[] nameBytes = e.getKey().getBytes(StandardCharsets.UTF_8);
                 if (nameBytes.length > Short.MAX_VALUE)
@@ -93,8 +93,8 @@ public class GenerateSymbolsWithIndex {
     }
 
     static class IndexEntry {
-        long offset;  // offset points to start of 4-byte length prefix
-        int length;   // length of FlatBuffer (excluding length prefix)
+        long offset;  // start of length prefix
+        int length;   // size of FlatBuffer
         IndexEntry(long offset, int length) { this.offset = offset; this.length = length; }
     }
 }
