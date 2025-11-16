@@ -1,28 +1,30 @@
 package fb.risk;
 
+import com.google.protobuf.ByteString;
 import io.grpc.*;
+
 import java.nio.ByteBuffer;
 import java.util.List;
 
 public class FlatDBGrpcClient {
-
     public static void main(String[] args) throws Exception {
         ManagedChannel channel = Grpc.newChannelBuilder("localhost:50051", InsecureChannelCredentials.create())
                 .build();
 
-        MethodDescriptor<List<String>, ByteBuffer> method = // same as server
-            MethodDescriptor.<List<String>, ByteBuffer>newBuilder()
+        MethodDescriptor<List<String>, ByteString> method = MethodDescriptor.<List<String>, ByteString>newBuilder()
                 .setType(MethodDescriptor.MethodType.SERVER_STREAMING)
                 .setFullMethodName("fb.risk.SymbolService/GetSymbols")
                 .setRequestMarshaller(new ListStringMarshaller())
-                .setResponseMarshaller(new FlatBufferMarshaller())
+                .setResponseMarshaller(new ByteStringMarshaller())
                 .build();
 
-        ClientCall<List<String>, ByteBuffer> call = channel.newCall(method, CallOptions.DEFAULT);
+        ClientCall<List<String>, ByteString> call = channel.newCall(method, CallOptions.DEFAULT);
+
         call.start(new ClientCall.Listener<>() {
             @Override
-            public void onMessage(ByteBuffer message) {
-                fb.risk.SymbolData sym = fb.risk.SymbolData.getRootAsSymbolData(message);
+            public void onMessage(ByteString message) {
+                ByteBuffer bb = message.asReadOnlyByteBuffer().order(java.nio.ByteOrder.LITTLE_ENDIAN);
+                fb.risk.SymbolData sym = fb.risk.SymbolData.getRootAsSymbolData(bb);
                 System.out.println("Received symbol: " + sym.symbol());
             }
 
@@ -34,7 +36,9 @@ public class FlatDBGrpcClient {
 
         call.sendMessage(List.of("AAPL", "MSFT"));
         call.halfClose();
-        channel.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
+
+        Thread.sleep(2000); // wait for stream to complete
+        channel.shutdownNow();
     }
 }
 

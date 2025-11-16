@@ -3,7 +3,8 @@ package fb.risk;
 import io.grpc.MethodDescriptor;
 
 import java.io.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ListStringMarshaller implements MethodDescriptor.Marshaller<List<String>> {
 
