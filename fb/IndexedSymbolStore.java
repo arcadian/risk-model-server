@@ -42,7 +42,7 @@ public class IndexedSymbolStore {
 
         ByteBuffer slice = mmap.duplicate();
         slice.position((int) (e.offset + 4));           // skip length prefix
-        slice.limit((int) (e.offset + 4 + e.length));   // set limit to end of FlatBuffer
+        slice.limit((int) (e.offset + 4 + e.length));   // exact FlatBuffer bytes
         slice = slice.slice().order(ByteOrder.LITTLE_ENDIAN);
         slice.rewind();
         return slice;

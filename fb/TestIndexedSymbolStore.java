@@ -20,7 +20,6 @@ public class TestIndexedSymbolStore {
                 continue;
             }
 
-            // parse FlatBuffer
             SymbolData symbolData = SymbolData.getRootAsSymbolData(slice);
 
             System.out.println("Symbol: " + symbolData.name());
