@@ -8,10 +8,8 @@ public class TestIndexedSymbolStore {
 
     public static void main(String[] args) throws Exception {
 
-        // Load the indexed file
         IndexedSymbolStore store = new IndexedSymbolStore("symbols_indexed.bin");
 
-        // Symbols we want to fetch
         List<String> symbolsToRead = Arrays.asList("sym0", "sym42", "sym77");
 
         for (String sym : symbolsToRead) {
@@ -22,10 +20,7 @@ public class TestIndexedSymbolStore {
                 continue;
             }
 
-            // Rewind slice to ensure position=0
-            slice.rewind();
-
-            // Parse FlatBuffer
+            // parse FlatBuffer
             SymbolData symbolData = SymbolData.getRootAsSymbolData(slice);
 
             System.out.println("Symbol: " + symbolData.name());

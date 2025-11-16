@@ -5,7 +5,8 @@ import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class GenerateSymbolsWithIndex {
 
@@ -14,18 +15,19 @@ public class GenerateSymbolsWithIndex {
     static final String FILE_NAME = "symbols_indexed.bin";
 
     public static void main(String[] args) throws Exception {
+
         Map<String, IndexEntry> indexMap = new LinkedHashMap<>();
 
         try (FileOutputStream fos = new FileOutputStream(FILE_NAME);
              FileChannel channel = fos.getChannel()) {
 
-            // Reserve space for index (we'll write later)
+            // Reserve space for index; we’ll write it after data section
             channel.position(0);
 
-            List<ByteBuffer> symbolBuffers = new ArrayList<>();
-            long dataSectionStart = 0; // track offset for index
+            // Temporary list to hold FlatBuffers for writing
+            ByteBuffer[] buffers = new ByteBuffer[NUM_SYMBOLS];
 
-            // Build FlatBuffers
+            // 1️⃣ Build FlatBuffers in memory
             for (int i = 0; i < NUM_SYMBOLS; i++) {
                 String symbol = "sym" + i;
                 FlatBufferBuilder builder = new FlatBufferBuilder(1024);
@@ -42,43 +44,36 @@ public class GenerateSymbolsWithIndex {
                 int root = SymbolData.endSymbolData(builder);
                 builder.finish(root);
 
-                ByteBuffer bb = builder.dataBuffer();
-                symbolBuffers.add(bb);
+                buffers[i] = builder.dataBuffer();
             }
 
-            // Compute offsets
-            dataSectionStart = 4; // 4 bytes for N
-            for (ByteBuffer bb : symbolBuffers) {
-                dataSectionStart += 2 + bb.capacity() + 8 + 4 + 0; // approximate index size
-            }
-
-            // Write index later
-            long dataOffset = dataSectionStart;
-
+            // 2️⃣ Write data section with length-prefixed FlatBuffers
+            long dataSectionStart = 0;
             for (int i = 0; i < NUM_SYMBOLS; i++) {
-                String symbol = "sym" + i;
-                ByteBuffer bb = symbolBuffers.get(i);
+                ByteBuffer bb = buffers[i];
+                long symbolOffset = channel.position(); // offset for index BEFORE writing length
 
-                // Record index entry
-                indexMap.put(symbol, new IndexEntry(dataOffset, bb.remaining()));
-
-                // Write length-prefixed FlatBuffer
-                ByteBuffer lenBuf = ByteBuffer.allocate(4);
-                lenBuf.putInt(bb.remaining());
+                // write length prefix
+                ByteBuffer lenBuf = ByteBuffer.allocate(4).putInt(bb.remaining());
                 lenBuf.flip();
                 channel.write(lenBuf);
+
+                // write FlatBuffer bytes
                 channel.write(bb);
 
-                dataOffset += 4 + bb.remaining();
+                // store index entry
+                indexMap.put("sym" + i, new IndexEntry(symbolOffset, bb.remaining()));
             }
 
-            // Go back to start to write index
+            // 3️⃣ Write index at the start of the file
             channel.position(0);
-            ByteBuffer header = ByteBuffer.allocate(4);
-            header.putInt(NUM_SYMBOLS);
+
+            // number of symbols
+            ByteBuffer header = ByteBuffer.allocate(4).putInt(NUM_SYMBOLS);
             header.flip();
             channel.write(header);
 
+            // write index entries
             for (Map.Entry<String, IndexEntry> e : indexMap.entrySet()) {
                 byte[] nameBytes = e.getKey().getBytes(StandardCharsets.UTF_8);
                 if (nameBytes.length > Short.MAX_VALUE)
@@ -98,13 +93,9 @@ public class GenerateSymbolsWithIndex {
     }
 
     static class IndexEntry {
-        long offset;
-        int length;
-
-        public IndexEntry(long offset, int length) {
-            this.offset = offset;
-            this.length = length;
-        }
+        long offset;  // offset points to start of 4-byte length prefix
+        int length;   // length of FlatBuffer (excluding length prefix)
+        IndexEntry(long offset, int length) { this.offset = offset; this.length = length; }
     }
 }
 

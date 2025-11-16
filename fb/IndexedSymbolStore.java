@@ -21,6 +21,7 @@ public class IndexedSymbolStore {
 
             mmap.position(0);
             int numSymbols = mmap.getInt();
+
             for (int i = 0; i < numSymbols; i++) {
                 short nameLen = mmap.getShort();
                 byte[] nameBytes = new byte[nameLen];
@@ -39,9 +40,13 @@ public class IndexedSymbolStore {
         IndexEntry e = index.get(symbol);
         if (e == null) return null;
 
+        // memory-mapped slice: skip 4-byte length prefix
         ByteBuffer slice = mmap.duplicate();
-        slice.position((int) e.offset).limit((int) (e.offset + e.length));
-        return slice.slice().order(ByteOrder.LITTLE_ENDIAN);
+        slice.position((int) (e.offset + 4));
+        slice.limit((int) (e.offset + 4 + e.length));
+        slice = slice.slice().order(ByteOrder.LITTLE_ENDIAN);
+        slice.rewind();
+        return slice;
     }
 
     public static class IndexEntry {
