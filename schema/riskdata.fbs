@@ -1,0 +1,9 @@
+namespace fb.risk;
+
+table SymbolData {
+  symbol: string;
+  factors: [double];
+}
+
+root_type SymbolData;
+

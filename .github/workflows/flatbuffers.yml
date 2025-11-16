@@ -26,7 +26,7 @@ jobs:
       - name: Generate Java classes
         run: |
           mkdir -p generated/java
-          flatc_bin/flatc --java -o generated/java schema/risk_day.fbs
+          flatc_bin/flatc --java -o generated/java schema/riskdata.fbs
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
